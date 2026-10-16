@@ -114,6 +114,55 @@ A catalog rule can produce 0 on its own: if a quarter or more of the items have 
 
 Which positive `m` ranks best is an empirical question, and one the simulation in this repo is meant to answer.
 
+## Beta-Binomial: votes, alpha and beta
+
+This section applies to the **Beta-Binomial** estimator. It works on two outcomes, up or down, instead of five star levels: the thumbs version of the Bayesian average.
+
+### From stars to votes
+
+Votes are derived from the same star counts every estimator reads (`toThumbs`), so all estimators can be compared on one catalog:
+
+| Stars | Counts as |
+|---|---|
+| 4★, 5★ | up |
+| 1★, 2★ | down |
+| 3★ | ignored: neither a like nor a dislike |
+
+Ignoring 3★ has a consequence worth knowing: an item with only 3★ ratings has zero votes, so it scores like an unrated item. Counting 3★ as down is the stricter alternative.
+
+### alpha and beta: pretend votes
+
+Every item starts with `alpha` pretend up votes and `beta` pretend down votes; real votes are added on top, and the score is the share of up votes:
+
+```
+score = (alpha + up) / (alpha + beta + up + down)
+```
+
+They map directly onto the Bayesian average's settings:
+
+| Bayesian average | Beta-Binomial | Meaning |
+|---|---|---|
+| `C` | `alpha / (alpha + beta)` | where a new item starts |
+| `m` | `alpha + beta` | how many pretend votes, so how much evidence an item needs |
+
+To set them, pick a prior up-ratio `μ` and a strength `m`, then `alpha = m·μ` and `beta = m·(1 - μ)`:
+
+- `μ` is usually the catalog's overall share of up votes: total up votes divided by total votes, across all items.
+- `m` is chosen exactly as for the Bayesian average: a fixed number, or a rule such as the 25th percentile of vote counts.
+
+With `m = 10` and `μ = 0.8`, so `alpha = 8` and `beta = 2`:
+
+| Item | up / down | Score |
+|---|---|---|
+| new, no ratings (or only 3★) | 0 / 0 | 8 / 10 = 0.800 |
+| a single 5★ | 1 / 0 | 9 / 11 = 0.818 |
+| a single 1★ | 0 / 1 | 8 / 11 = 0.727 |
+| 500 ratings averaging 4.7 | 480 / 10 | 488 / 500 = 0.976 |
+
+**Both must be greater than 0.** With both at 0, an item with no votes scores `0 / 0 = NaN`, which breaks sorting. With only one at 0, a new item starts at exactly 0% or 100%: the extreme the pretend votes are there to avoid. The factory rejects either when the estimator is created.
+
+**The score is a share between 0 and 1, not stars.** Only the order matters for ranking, so this is fine, but scores from different estimators can't be compared with each other directly: compare the rankings they produce.
+
 ## Production usage
 
 This applies to any estimator; the example job uses the Bayesian average.

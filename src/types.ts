@@ -24,3 +24,9 @@ export interface ItemStats {
 
 /** Turns an item's rating counts into a score; a higher score ranks higher. */
 export type Estimator = (stats: ItemStats) => number;
+
+/** Star ratings reduced to likes and dislikes: 4-5★ up, 1-2★ down, 3★ ignored. */
+export interface Thumbs {
+	readonly up: number;
+	readonly down: number;
+}

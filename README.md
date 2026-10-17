@@ -58,6 +58,14 @@ posterior = Beta(α + k, β + n - k)
 mean      = (α + k) / (α + β + n)
 ```
 
+Wilson lower bound (thumbs up/down), with `p̂ = k / n` and confidence `z`:
+
+```
+        p̂ + z²/(2n) - z·√( p̂(1-p̂)/n + z²/(4n²) )
+lower = ------------------------------------------
+                     1 + z²/n
+```
+
 Dirichlet-Multinomial (1-5 stars), with `aₖ = αₖ + nₖ` and `N = Σ aₖ`:
 
 ```
@@ -120,6 +128,8 @@ This section applies to the **Beta-Binomial** estimator. It works on two outcome
 
 ### From stars to votes
 
+> **Demo shortcut.** Real thumbs systems (likes, "was this review helpful?", "would you recommend?") collect up and down votes directly, so there is no neutral option and nothing is lost. Star systems use the star estimators instead. This repo converts stars to votes only so that every estimator runs on the same simulated catalog. The conversion throws away information, so part of any gap between the thumbs estimators and the star estimators in the simulation comes from the conversion, not from the method.
+
 Votes are derived from the same star counts every estimator reads (`toThumbs`), so all estimators can be compared on one catalog:
 
 | Stars | Counts as |
@@ -162,6 +172,50 @@ With `m = 10` and `μ = 0.8`, so `alpha = 8` and `beta = 2`:
 **Both must be greater than 0.** With both at 0, an item with no votes scores `0 / 0 = NaN`, which breaks sorting. With only one at 0, a new item starts at exactly 0% or 100%: the extreme the pretend votes are there to avoid. The factory rejects either when the estimator is created.
 
 **The score is a share between 0 and 1, not stars.** Only the order matters for ranking, so this is fine, but scores from different estimators can't be compared with each other directly: compare the rankings they produce.
+
+## Wilson lower bound: pessimistic, not Bayesian
+
+This section applies to the **Wilson lower bound** estimator. It reads the same up and down votes as Beta-Binomial, but answers a different question.
+
+> **Demo shortcut.** Like Beta-Binomial, Wilson is meant for native up/down votes. Here they are converted from stars, with 3★ ignored; see "From stars to votes" above.
+
+### Best guess vs worst plausible case
+
+| | Bayesian average, Beta-Binomial | Wilson lower bound |
+|---|---|---|
+| Question | What is the best guess of the item's true rating? | How low could the item's true up-ratio plausibly be? |
+| Few ratings | Pulled **toward the catalog average** | Pushed **down** |
+| New item | Starts at the prior (`C`, or `alpha / (alpha + beta)`) | Starts at 0, the bottom |
+| Needs | A prior: catalog-wide settings | Only the item's own votes, plus `z` |
+
+Wilson builds a confidence interval around the item's observed up-ratio and ranks by its lower end. Few votes give a wide interval and a low bound; many votes give a narrow interval and a bound close to the observed ratio. There are no pretend votes and no prior, which makes it frequentist rather than Bayesian.
+
+The same items under Beta-Binomial (`alpha = 8`, `beta = 2`) and Wilson (`z = 1.96`):
+
+| Item | up / down | Beta-Binomial | Wilson |
+|---|---|---|---|
+| new, no ratings (or only 3★) | 0 / 0 | 0.800 | 0.000 |
+| a single 5★ | 1 / 0 | 0.818 | 0.207 |
+| a single 1★ | 0 / 1 | 0.727 | 0.000 |
+| 9 of 10 up | 9 / 1 | 0.850 | 0.596 |
+| 500 ratings averaging 4.7 | 480 / 10 | 0.976 | 0.963 |
+
+Both rank the 500-rating item above the single 5★, and for well-reviewed items the two agree closely. They differ at the edges:
+
+- **New items.** The Bayesian estimators place an unrated item mid-table, at the prior, above anything worse than average. Wilson puts it at the bottom, tied with items that have only down votes, so new items need another way to get noticed (see Thompson sampling in the roadmap).
+- **The prior.** Beta-Binomial's result depends on choosing `alpha` and `beta` well. Wilson has nothing catalog-wide to choose or recompute: each item is scored from its own votes alone, so the nightly recompute in "Production usage" isn't needed for it.
+
+Wilson suits lists where showing a weak item costs more than missing a good new one, such as "top rated" lists or sorting reviews by helpfulness. The Bayesian estimators suit a best-guess score that treats new items fairly.
+
+### z: how cautious
+
+`z` sets the confidence level: `1.96` (the default) is 95%, `2.58` is 99%. A larger `z` widens the interval and lowers every score.
+
+With only up votes the formula collapses to `n / (n + z²)`, so a single 5★ scores `1 / (1 + 3.84) = 0.207`. That is the score Beta-Binomial would give with about 3.84 pretend down votes and no pretend ups: a pessimistic prior in all but name.
+
+**`z` must be greater than 0.** With `z = 0` the interval has no width and the score is the raw up-ratio, `up / n`: the naive mean's flaw again, where one 5★ scores a perfect 1.0. The factory rejects it.
+
+**Why not the textbook interval.** The usual `p̂ ± z·√(p̂(1-p̂)/n)` has zero width when every vote is up (`p̂ = 1`), so a single 5★ gets a lower bound of 1.0. Wilson's extra `z²` terms keep the interval honest for small counts and ratios near 0 or 1.
 
 ## Production usage
 

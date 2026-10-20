@@ -44,6 +44,13 @@ Bayes' theorem: the updated belief is the prior belief weighted by how well each
 posterior ∝ likelihood × prior
 ```
 
+Minimum-count threshold, with threshold `n` and an item's `count` ratings:
+
+```
+score = 0                          if count < n
+      = sum of ratings / count     otherwise
+```
+
 Bayesian average, with catalog mean `C`, prior weight `m` (pseudo-votes), and an item's `n` ratings:
 
 ```
@@ -75,6 +82,35 @@ score  = E[S] - z·√Var[S]
 ```
 
 The Bayesian average is the special case of the Dirichlet posterior mean where the prior is the catalog's star distribution scaled by `m`.
+
+## Minimum-count threshold: a cutoff
+
+This section applies to the **minimum-count threshold** estimator. It is the simplest fix for the naive mean: an item isn't ranked by its average until it has at least `n` ratings. Below that it scores 0, under every ranked item, since a real average is at least 1★.
+
+With `n = 5`:
+
+| Item | Ratings | Score |
+|---|---|---|
+| new, no ratings | 0 | 0 |
+| a single 5★ | 1 | 0 |
+| four 5★ | 4 | 0 |
+| five 1★ | 5 | 5 / 5 = 1.00 |
+| five 5★ | 5 | 25 / 5 = 5.00 |
+| 500 ratings averaging 4.7 | 500 | 2350 / 500 = 4.70 |
+
+It fixes the naive mean's best-known failure, but moves the problem rather than solving it:
+
+- **Fixed:** a single 5★ no longer outranks 500 ratings averaging 4.7.
+- **The cliff:** four 5★ score 0, below five 1★. One more 5★ and the item jumps from the bottom to the top. Every item below the threshold ties at 0, however good its ratings.
+- **Above the threshold it is the naive mean.** Five 5★ (5.00) still outrank 500 ratings averaging 4.7: the same flaw, at `n` ratings instead of 1.
+
+### n: how many ratings count
+
+`n` is a policy choice: a fixed number, or a rule over the catalog such as a percentile of rating counts. Too low and a few lucky ratings still win; too high and good new items stay hidden. A score of 0 sorts unranked items last; listings often hide them instead, or show them in a separate "new" section.
+
+**`n` must be a whole number of at least 1.** With `n = 1` the threshold is off and the score is the naive mean. Below 1 a minimum count has no meaning. A decimal would quietly act as the next whole number (2.5 as 3), and `Infinity` would score every item 0. The factory rejects all of these when the estimator is created. A percentile rule can give a decimal, so round it up first: `n = Math.max(1, Math.ceil(p25))`.
+
+**The score is in stars**, with 0 meaning "not enough ratings yet".
 
 ## Bayesian average: choosing C and m
 
@@ -268,6 +304,7 @@ The methods most stores actually ship, and a way to compare them.
 
 - [ ] Scaffold: TypeScript, Vitest, shared types
 - [ ] Naive mean, with a test that shows it failing
+- [x] Minimum-count threshold
 - [ ] Bayesian average
 - [ ] Beta-Binomial and Wilson lower bound
 - [ ] Simulation and evaluation (Kendall tau, error against the truth)

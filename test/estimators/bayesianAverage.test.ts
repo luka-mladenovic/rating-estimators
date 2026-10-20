@@ -64,9 +64,25 @@ describe("bayesianAverage", () => {
 		expect(score(many)).toBeGreaterThan(score(single));
 	});
 
-	it.each([0, -1, Number.NaN])("throws when m is %s", (m) => {
-		expect(() => bayesianAverage({ m, c: 4 })).toThrow(
-			"m must be greater than 0",
-		);
+	it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])(
+		"throws when m is %s",
+		(m) => {
+			expect(() => bayesianAverage({ m, c: 4 })).toThrow(
+				"m must be greater than 0 and finite",
+			);
+		},
+	);
+
+	it.each([0.99, 5.01, 0, Number.NaN, Number.POSITIVE_INFINITY])(
+		"throws when c is %s",
+		(c) => {
+			expect(() => bayesianAverage({ m: 10, c })).toThrow(
+				"c must be between 1 and 5",
+			);
+		},
+	);
+
+	it.each([1, 5])("accepts c at the end of the star scale, %s", (c) => {
+		expect(() => bayesianAverage({ m: 10, c })).not.toThrow();
 	});
 });

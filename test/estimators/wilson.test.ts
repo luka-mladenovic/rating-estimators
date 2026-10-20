@@ -84,7 +84,12 @@ describe("wilson", () => {
 		expect(single1).toBe(0);
 	});
 
-	it.each([0, -1, Number.NaN])("throws when z is %s", (z) => {
-		expect(() => wilson({ z })).toThrow("z must be greater than 0");
-	});
+	it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])(
+		"throws when z is %s",
+		(z) => {
+			expect(() => wilson({ z })).toThrow(
+				"z must be greater than 0 and finite",
+			);
+		},
+	);
 });

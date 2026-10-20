@@ -70,9 +70,11 @@ describe("betaBinomial", () => {
 		{ alpha: 8, beta: 0 },
 		{ alpha: -1, beta: 2 },
 		{ alpha: 8, beta: Number.NaN },
+		{ alpha: Number.POSITIVE_INFINITY, beta: 2 },
+		{ alpha: 8, beta: Number.POSITIVE_INFINITY },
 	])("throws when alpha is $alpha and beta is $beta", (options) => {
 		expect(() => betaBinomial(options)).toThrow(
-			"alpha and beta must be greater than 0",
+			"alpha and beta must be greater than 0 and finite",
 		);
 	});
 });

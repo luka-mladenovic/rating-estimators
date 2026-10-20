@@ -12,10 +12,11 @@ export interface BayesianAverageOptions {
 	 * Chosen, not measured: a fixed number or a rule over
 	 * the catalog. Must be the same for every item in one ranking.
 	 *
-	 * Must be greater than 0, or the factory throws. With m = 0 the score is
-	 * just the naive mean (one 5★ outranks 500 ratings averaging 4.7), and an
-	 * item with no ratings scores 0 / 0 = NaN, which breaks sorting. With
-	 * m > 0 the denominator is always at least m, so an unrated item scores c.
+	 * Must be greater than 0 and finite, or the factory throws. With m = 0 the
+	 * score is just the naive mean (one 5★ outranks 500 ratings averaging 4.7),
+	 * and an item with no ratings scores 0 / 0 = NaN, which breaks sorting.
+	 * With m > 0 the denominator is always at least m, so an unrated item
+	 * scores c. With m = Infinity every item scores Infinity / Infinity = NaN.
 	 */
 	readonly m: number;
 
@@ -25,6 +26,10 @@ export interface BayesianAverageOptions {
 	 * It is where an item with no ratings starts, so it should be "a typical
 	 * rating here": usually the average of all ratings in the catalog,
 	 * computed from all items before scoring any of them.
+	 *
+	 * Must be between 1 and 5, or the factory throws: with c = NaN every
+	 * score is NaN, and a value off the star scale gives scores that aren't
+	 * stars.
 	 */
 	readonly c: number;
 }
@@ -63,8 +68,14 @@ export interface BayesianAverageOptions {
  * nightly runs, a new rating can update its item's score with the cached c.
  */
 export function bayesianAverage({ m, c }: BayesianAverageOptions): Estimator {
-	if (!(m > 0)) {
-		throw new Error(`m must be greater than 0, got ${m}`);
+	// Number.isFinite is false for NaN and Infinity, so both throw.
+	if (!(Number.isFinite(m) && m > 0)) {
+		throw new Error(`m must be greater than 0 and finite, got ${m}`);
+	}
+
+	// The pretend ratings are stars. !(c >= 1 && c <= 5) also rejects NaN.
+	if (!(c >= 1 && c <= 5)) {
+		throw new Error(`c must be between 1 and 5, got ${c}`);
 	}
 
 	return (stats) => {

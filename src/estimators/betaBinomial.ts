@@ -11,14 +11,15 @@ export interface BetaBinomialOptions {
 	 * alpha = m * μ and beta = m * (1 - μ). With m = 10 and μ = 0.8:
 	 * alpha = 8, beta = 2.
 	 *
-	 * Must be greater than 0, or the factory throws.
+	 * Must be greater than 0 and finite, or the factory throws. With
+	 * alpha = Infinity every item scores Infinity / Infinity = NaN.
 	 */
 	readonly alpha: number;
 
 	/**
 	 * How many pretend down votes every item starts with. See `alpha`.
 	 *
-	 * Must be greater than 0, or the factory throws.
+	 * Must be greater than 0 and finite, or the factory throws.
 	 */
 	readonly beta: number;
 }
@@ -40,10 +41,13 @@ export interface BetaBinomialOptions {
  * estimators, not raw scores.
  */
 export function betaBinomial({ alpha, beta }: BetaBinomialOptions): Estimator {
-	// !(x > 0) also rejects NaN, which `x <= 0` would let through.
-	if (!(alpha > 0) || !(beta > 0)) {
+	// Number.isFinite is false for NaN and Infinity, so both throw.
+	if (
+		!(Number.isFinite(alpha) && alpha > 0) ||
+		!(Number.isFinite(beta) && beta > 0)
+	) {
 		throw new Error(
-			`alpha and beta must be greater than 0, got alpha ${alpha}, beta ${beta}`,
+			`alpha and beta must be greater than 0 and finite, got alpha ${alpha}, beta ${beta}`,
 		);
 	}
 

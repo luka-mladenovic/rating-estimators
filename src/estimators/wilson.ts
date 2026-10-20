@@ -10,8 +10,10 @@ export interface WilsonOptions {
 	 * the score. For ranking the exact level hardly matters: a larger z
 	 * punishes items with few votes harder, a smaller z trusts them sooner.
 	 *
-	 * Must be greater than 0, or the factory throws: with z = 0 the interval
-	 * has no width and the score is the raw up-ratio, where one 5★ scores 1.0.
+	 * Must be greater than 0 and finite, or the factory throws: with z = 0 the
+	 * interval has no width and the score is the raw up-ratio, where one 5★
+	 * scores 1.0. With z = Infinity every item with votes scores
+	 * Infinity - Infinity = NaN.
 	 */
 	readonly z?: number;
 }
@@ -43,9 +45,9 @@ export const zDefault = 1.96;
  * compare rankings across estimators, not raw scores.
  */
 export function wilson({ z = zDefault }: WilsonOptions = {}): Estimator {
-	// !(z > 0) also rejects NaN, which `z <= 0` would let through.
-	if (!(z > 0)) {
-		throw new Error(`z must be greater than 0, got ${z}`);
+	// Number.isFinite is false for NaN and Infinity, so both throw.
+	if (!(Number.isFinite(z) && z > 0)) {
+		throw new Error(`z must be greater than 0 and finite, got ${z}`);
 	}
 
 	return (stats) => {

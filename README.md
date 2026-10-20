@@ -132,6 +132,8 @@ A single happy customer barely moves an item; 500 customers drown out the preten
 
 `C` is the average of **all ratings in the catalog**: the sum of every item's ratings divided by the total number of ratings. Items with many ratings weigh more than in an average of item averages, which is intended. Rank categories separately and each can have its own `C`.
 
+**`C` must be between 1 and 5**, since the pretend ratings are stars. The factory rejects anything else: `NaN` would make every score `NaN`, and a value such as 100 gives scores that aren't stars.
+
 ### m: how much evidence an item needs
 
 `m` is a policy choice. An item with exactly `m` ratings lands halfway between its own average and `C`.
@@ -152,7 +154,7 @@ Two common ways to set it:
 - **It is no longer a Bayesian average.** `(0·C + sum) / (0 + n)` is `sum / n`, the naive mean, with exactly the flaw this estimator exists to fix: one 5★ rating (5.0) outranks 500 ratings averaging 4.7. When that is really what's wanted, use the naive mean directly rather than a setting that quietly switches the method off.
 - **An item with no ratings has no score.** `(0·C + 0) / (0 + 0)` is `0 / 0`, which is `NaN` in JavaScript, not an error. `NaN` compares as neither greater nor smaller than anything, so it breaks sorting silently. With `m > 0` the denominator is always at least `m`, so every item gets a number and an unrated item scores exactly `C`, with no special case.
 
-Negative `m` is invalid too: "minus ten pretend ratings" has no meaning, and it can divide by zero (`m = -1` with one rating). The factory rejects any `m <= 0` when the estimator is created, so the check runs once rather than per item.
+Negative `m` is invalid too: "minus ten pretend ratings" has no meaning, and it can divide by zero (`m = -1` with one rating). The factory rejects any `m <= 0` when the estimator is created, so the check runs once rather than per item. It rejects `m = Infinity` too: every score would be `∞ / ∞`, which is `NaN`.
 
 A catalog rule can produce 0 on its own: if a quarter or more of the items have no ratings, their 25th percentile is 0. Clamp it, e.g. `m = Math.max(1, p25)`.
 
@@ -205,7 +207,7 @@ With `m = 10` and `μ = 0.8`, so `alpha = 8` and `beta = 2`:
 | a single 1★ | 0 / 1 | 8 / 11 = 0.727 |
 | 500 ratings averaging 4.7 | 480 / 10 | 488 / 500 = 0.976 |
 
-**Both must be greater than 0.** With both at 0, an item with no votes scores `0 / 0 = NaN`, which breaks sorting. With only one at 0, a new item starts at exactly 0% or 100%: the extreme the pretend votes are there to avoid. The factory rejects either when the estimator is created.
+**Both must be greater than 0.** With both at 0, an item with no votes scores `0 / 0 = NaN`, which breaks sorting. With only one at 0, a new item starts at exactly 0% or 100%: the extreme the pretend votes are there to avoid. The factory rejects either when the estimator is created, and `Infinity` too, which would make every score `∞ / ∞ = NaN`.
 
 **The score is a share between 0 and 1, not stars.** Only the order matters for ranking, so this is fine, but scores from different estimators can't be compared with each other directly: compare the rankings they produce.
 
@@ -249,7 +251,7 @@ Wilson suits lists where showing a weak item costs more than missing a good new 
 
 With only up votes the formula collapses to `n / (n + z²)`, so a single 5★ scores `1 / (1 + 3.84) = 0.207`. That is the score Beta-Binomial would give with about 3.84 pretend down votes and no pretend ups: a pessimistic prior in all but name.
 
-**`z` must be greater than 0.** With `z = 0` the interval has no width and the score is the raw up-ratio, `up / n`: the naive mean's flaw again, where one 5★ scores a perfect 1.0. The factory rejects it.
+**`z` must be greater than 0.** With `z = 0` the interval has no width and the score is the raw up-ratio, `up / n`: the naive mean's flaw again, where one 5★ scores a perfect 1.0. The factory rejects it, and `Infinity` too, which would make every item with votes score `∞ - ∞ = NaN`.
 
 **Why not the textbook interval.** The usual `p̂ ± z·√(p̂(1-p̂)/n)` has zero width when every vote is up (`p̂ = 1`), so a single 5★ gets a lower bound of 1.0. Wilson's extra `z²` terms keep the interval honest for small counts and ratios near 0 or 1.
 

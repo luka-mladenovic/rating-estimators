@@ -255,6 +255,61 @@ With only up votes the formula collapses to `n / (n + z²)`, so a single 5★ sc
 
 **Why not the textbook interval.** The usual `p̂ ± z·√(p̂(1-p̂)/n)` has zero width when every vote is up (`p̂ = 1`), so a single 5★ gets a lower bound of 1.0. Wilson's extra `z²` terms keep the interval honest for small counts and ratios near 0 or 1.
 
+## Dirichlet-Multinomial: stars, a prior and caution
+
+This section applies to the **Dirichlet-Multinomial** estimator. It combines the ideas of the others: pretend ratings like the Bayesian average, and a pessimistic score like Wilson, but on all five star levels instead of up and down votes. No conversion to thumbs is needed.
+
+### Pretend ratings at each star level
+
+Every item has a true star distribution: the share of buyers who would give 1★, 2★, ... 5★. The Dirichlet is a belief about all five shares at once, the five-level version of the Beta. It works with pretend ratings, one count per level:
+
+| | 1★ | 2★ | 3★ | 4★ | 5★ |
+|---|---|---|---|---|---|
+| prior `alpha` | 1 | 1 | 1 | 1 | 1 |
+| a single 5★ | 0 | 0 | 0 | 0 | 1 |
+| posterior `a` | 1 | 1 | 1 | 1 | 2 |
+
+The **mean** of the posterior, `E[S]`, is the best guess of the item's true average: a Bayesian average whose pretend ratings are spread over the star levels instead of all sitting at `C`. Here it is `(1 + 2 + 3 + 4 + 10) / 6 = 3.33`.
+
+The **variance**, `Var[S]`, says how sure that guess is. It grows with the spread of the ratings (a mix of 1★ and 5★ says less about the true mean than steady 3★) and shrinks as ratings come in, through the `N + 1` divisor. The score takes `z` standard deviations off the mean (see "Key formulas").
+
+### alpha: where a new item starts, and how firmly
+
+The **shape** of `alpha` sets where a new item starts and its **total** sets how many real ratings it takes to move it, like `m` in the Bayesian average. The default `[1, 1, 1, 1, 1]` is five pretend ratings centred on 3★. A better prior follows the catalog:
+
+```
+alpha_k = m · (the catalog's share of k★ ratings)
+```
+
+With `z = 1.96`:
+
+| Item | `[1, 1, 1, 1, 1]` | `[2, 2, 2, 2, 2]` | `[0.5, 0.5, 1, 3, 5]` |
+|---|---|---|---|
+| new, no ratings | 1.868 | 2.164 | 3.495 |
+| a single 5★ | 2.229 | 2.352 | 3.614 |
+| five 5★ | 3.164 | 2.936 | 3.949 |
+| 500 ratings averaging 4.7 | 4.623 | 4.604 | 4.631 |
+
+- **A larger total pulls harder.** Five 5★ score 2.936 with `[2, …]` instead of 3.164. Five hundred real ratings drown out either prior.
+- **A larger total is also more confident.** An unrated item scores higher with `[2, …]` (2.164 against 1.868): its mean is 3 either way, but there is less uncertainty to take off.
+- **The shape matters most for new items.** The last column is `10 ×` a typical catalog's shares (`[5%, 5%, 10%, 30%, 50%]`): a new item starts at a mean of 4.15 instead of 3.
+
+The 500-rating item ranks above five 5★ under all three priors, the case the minimum-count threshold gets wrong.
+
+**Every value of `alpha` must be greater than 0 and finite.** It doesn't have to be a whole number. With a 0 the prior rules out a star level until a real rating arrives; `NaN` or `Infinity` would make every score `NaN`. The factory rejects all of these.
+
+### z: how cautious
+
+`z` works as in Wilson: `1.96` (the default) takes about two standard deviations off the mean, and a larger `z` pushes items with few ratings further down. Unlike Wilson, the prior already protects small samples, so `z` only adds caution on top.
+
+**`z` must be greater than 0 and finite.** The factory rejects anything else. With `z = 0` the score would be just the posterior mean.
+
+### Things to know
+
+- **The score is in stars, but below the mean.** With few ratings it can drop under 1★, and with a weak prior and a large `z` even under 0. Only the order matters for ranking.
+- **Cold start.** An unrated item scores the prior's mean minus its uncertainty: 1.868 with the defaults. That ranks it below an item with 100 ratings of 2★ (1.976). Gentler than Wilson's 0, but new items still need another way to get noticed (see Thompson sampling in the roadmap).
+- **Mixed ratings score lower.** 50 × 1★ and 50 × 5★ (mean 3) score 2.624, while 100 × 3★ score 2.941: a split audience leaves the true mean less certain.
+
 ## Production usage
 
 This applies to any estimator; the example job uses the Bayesian average.
@@ -315,7 +370,7 @@ The methods most stores actually ship, and a way to compare them.
 
 More depth, mostly relevant at marketplace scale.
 
-- [ ] Dirichlet-Multinomial, ranked by mean minus uncertainty
+- [x] Dirichlet-Multinomial, ranked by mean minus uncertainty
 - [ ] Empirical Bayes prior
 - [ ] Monte Carlo sampling and Thompson sampling
 - [ ] Recency weighting

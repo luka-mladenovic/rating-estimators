@@ -304,11 +304,11 @@ The number shown to customers is often **not** the ranking score: product pages 
 
 The methods most stores actually ship, and a way to compare them.
 
-- [ ] Scaffold: TypeScript, Vitest, shared types
-- [ ] Naive mean, with a test that shows it failing
+- [x] Scaffold: TypeScript, Vitest, shared types
+- [x] Naive mean, with a test that shows it failing
 - [x] Minimum-count threshold
-- [ ] Bayesian average
-- [ ] Beta-Binomial and Wilson lower bound
+- [x] Bayesian average
+- [x] Beta-Binomial and Wilson lower bound
 - [ ] Simulation and evaluation (Kendall tau, error against the truth)
 
 ### Optional

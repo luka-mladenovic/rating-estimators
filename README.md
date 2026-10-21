@@ -83,6 +83,13 @@ score  = E[S] - z·√Var[S]
 
 The Bayesian average is the special case of the Dirichlet posterior mean where the prior is the catalog's star distribution scaled by `m`.
 
+Kendall tau (evaluation, not an estimator), comparing two orderings of `n` items pair by pair: `C` pairs in the same order, `D` in opposite orders, `Tx` and `Ty` tied on one side only:
+
+```
+tau_a = (C - D) / (n·(n - 1) / 2)
+tau_b = (C - D) / √((C + D + Tx) · (C + D + Ty))
+```
+
 ## Minimum-count threshold: a cutoff
 
 This section applies to the **minimum-count threshold** estimator. It is the simplest fix for the naive mean: an item isn't ranked by its average until it has at least `n` ratings. Below that it scores 0, under every ranked item, since a real average is at least 1★.
@@ -310,6 +317,48 @@ The 500-rating item ranks above five 5★ under all three priors, the case the m
 - **Cold start.** An unrated item scores the prior's mean minus its uncertainty: 1.868 with the defaults. That ranks it below an item with 100 ratings of 2★ (1.976). Gentler than Wilson's 0, but new items still need another way to get noticed (see Thompson sampling in the roadmap).
 - **Mixed ratings score lower.** 50 × 1★ and 50 × 5★ (mean 3) score 2.624, while 100 × 3★ score 2.941: a split audience leaves the true mean less certain.
 
+## Evaluation: Kendall tau
+
+This section applies to the simulation, not to an estimator. Kendall tau measures how close an estimator's ranking comes to the true one: `kendallTau(trueMeans, scores)`, two parallel arrays where position `i` is the same item.
+
+### Pairs, not positions
+
+Kendall tau doesn't compare places in the list. For every pair of items it asks: do the truth and the estimator agree on which one is better? Four items, where the estimator swaps A and B and ties C and D at 0 (as a minimum count would):
+
+| Item | True mean | Score |
+|---|---|---|
+| A | 4.5 | 4.4 |
+| B | 4.0 | 4.6 |
+| C | 3.5 | 0 |
+| D | 3.0 | 0 |
+
+Of the 6 pairs, 4 agree (`C = 4`), A-B disagrees (`D = 1`) and C-D is tied by the estimator only (`Ty = 1`). So `tau_a = 3 / 6 = 0.5` and `tau_b = 3 / √30 = 0.548` (see "Key formulas").
+
+Both run from 1 (the same order) through 0 (no better than random) to -1 (reversed). Without ties, tau is the share of pairs in the right order minus the share in the wrong order: 0.6 means 80% right and 20% wrong.
+
+### Tau-a or tau-b
+
+The two differ only in how they treat ties, and the estimators produce plenty: every item under a minimum count scores 0, and so does every unrated item in Wilson.
+
+- **Tau-a** counts a tied pair as neither right nor wrong: it earns nothing but still counts among all pairs.
+- **Tau-b** forgives ties. It is the standard version, a proper correlation that reaches 1 whenever both sides order and tie the same pairs.
+
+A user never sees a tie: a list shows tied items in some arbitrary order, and on average half of those pairs come out right and half wrong. The expected tau of the list a user sees is therefore tau-a, so **tau-a is the headline** and tau-b is reported beside it.
+
+The gap shows when an estimator says little. Ten items, where the estimator picks out the true best and scores the other nine 0:
+
+| | Value | Reads as |
+|---|---|---|
+| tau-a | 9 / 45 = 0.20 | one item placed right, nine in random order |
+| tau-b | 9 / √(9 · 45) = 0.45 | the ties forgiven |
+
+### Things to know
+
+- **Only the order matters.** Scores go in as they are, with no ranking or sorting first, and scaling them doesn't change the result.
+- **Everything tied gives 0.** An estimator that scores every item the same carries no information. Tau-b would be 0 / 0, so both return 0.
+- **Bad input throws:** arrays of different lengths, fewer than 2 items, or a `NaN` or `Infinity` anywhere. A `NaN` score would otherwise be counted silently as a tie and hide a broken estimator.
+- **Every pair is compared,** `n·(n - 1) / 2` of them: about 500,000 for 1,000 items, fast enough for the simulation.
+
 ## Production usage
 
 This applies to any estimator; the example job uses the Bayesian average.
@@ -379,5 +428,6 @@ More depth, mostly relevant at marketplace scale.
 
 - Wikipedia, [Bayes estimator](https://en.wikipedia.org/wiki/Bayes_estimator), section "Practical example of Bayes estimators"
 - Wikipedia, [Conjugate prior](https://en.wikipedia.org/wiki/Conjugate_prior)
+- Wikipedia, [Kendall rank correlation coefficient](https://en.wikipedia.org/wiki/Kendall_rank_correlation_coefficient)
 - Evan Miller, [How Not To Sort By Average Rating](https://www.evanmiller.org/how-not-to-sort-by-average-rating.html)
 - Evan Miller, [Ranking Items With Star Ratings](https://www.evanmiller.org/ranking-items-with-star-ratings.html)

@@ -1,4 +1,4 @@
-import type {Estimator, StarCounts} from "../types.ts";
+import type { Estimator, StarCounts } from "../types.ts";
 
 export interface DirichletOptions {
 	/**

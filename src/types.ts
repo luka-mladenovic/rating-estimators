@@ -16,6 +16,9 @@ export interface Rating {
 /** Number of 1★, 2★, 3★, 4★ and 5★ ratings, in that order. */
 export type StarCounts = readonly [number, number, number, number, number];
 
+/** Share of 1★, 2★, 3★, 4★ and 5★ ratings, in that order; sums to 1. */
+export type StarShares = readonly [number, number, number, number, number];
+
 /** An item's ratings, aggregated: what the estimators read. */
 export interface ItemStats {
 	readonly itemId: string;

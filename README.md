@@ -22,6 +22,43 @@ Each method is an **estimator**: a function from an item's ratings to a score. A
 
 The **simulation** is how they are judged. It invents a catalog where each item's true rating distribution is known, draws a realistic number of fake reviews from each, runs every estimator, and measures how close each ranking comes to the true one. In real data the truth is hidden; here it isn't, so "which method is better" has a measurable answer.
 
+## The estimators in plain terms
+
+An overview for deciding which method to use. The sections further down explain how each one works.
+
+Every method below is a different answer to the same question. Take three products:
+
+- **A** has a single review: 5★.
+- **B** has 500 reviews averaging 4.7★.
+- **C** is new, with no reviews yet.
+
+B is almost certainly the better product: 500 happy customers say more than one. A good ranking puts B above A, and still gives C a fair chance.
+
+**Plain average.** Sort by the average rating. It's simple and it's what customers expect to see, but it trusts one review as much as 500, so **A (5.0) beats B (4.7)**. The top of the list fills with lucky products that have one or two reviews. Useful as a baseline, not for ranking.
+
+**Minimum review count.** Use the plain average, but only for products with enough reviews, e.g. at least 5; the rest go to the bottom. A drops out of the way, but the problem only moves: a product with five 5★ reviews still beats B. A product one review short of the line sits at the bottom, however good its reviews. Easy to explain, but crude.
+
+**Bayesian average.** Every product starts with a handful of pretend "typical" reviews, at the catalog's average, and real reviews gradually outweigh them. One 5★ barely moves a product (A scores 4.09), while 500 reviews move it all the way (B scores 4.69). C starts mid-table, at the catalog average. **The usual choice for a default "sort by rating".** It needs the catalog average and one setting, how many pretend reviews, recomputed regularly.
+
+**Beta-Binomial.** The same idea for thumbs up/down: every product starts with a few pretend votes. Use it where customers vote up or down ("was this helpful?", "would you recommend?") rather than give stars. B ranks above A, and C starts mid-table.
+
+**Wilson lower bound.** Ranks by "how good is this product **at least**, given what we know?" instead of "how good is it probably?". A product needs plenty of positive votes to rank high: A scores low and B high. It needs no catalog-wide settings, but **new products start at the very bottom**. Best for a cautious "Top rated" list, where showing a weak product costs more than missing a good new one.
+
+**Dirichlet-Multinomial.** Combines the two ideas on full star ratings: pretend reviews like the Bayesian average, plus a penalty for uncertainty like Wilson. It also notices when customers disagree: a product with half 1★ and half 5★ ranks below one with steady 3★ reviews, since its true quality is less certain. B ranks well above A. New products start low, below products known to be mediocre, though not at the very bottom. The most complete method, and the hardest to explain.
+
+| Method | A (one 5★) vs B (500, avg 4.7) | New product C starts | Good for |
+|---|---|---|---|
+| Plain average | A wins ✗ | at 0, the bottom | a baseline only |
+| Minimum review count | B wins, but five 5★ beat B ✗ | at the bottom | quick fix, easy to explain |
+| Bayesian average | B wins ✓ | mid-table | default "sort by rating" |
+| Beta-Binomial | B wins ✓ | mid-table | thumbs up/down systems |
+| Wilson lower bound | B wins ✓ | at the bottom | cautious "Top rated" lists |
+| Dirichlet-Multinomial | B wins ✓ | low | stars, when caution matters |
+
+Scores from different methods use different scales (stars, or a share between 0 and 1), so only the order each one produces can be compared, not the numbers.
+
+**What isn't known yet:** which of these ranks products closest to their true quality, and by how much. That is what the simulation measures; results will be added here. Three further ideas are planned (see the roadmap): learning the pretend reviews from the catalog itself, giving new products occasional exposure so they can collect reviews, and counting old reviews for less.
+
 ## Estimators
 
 | Estimator | Idea | Answers |
